@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Agri Advisor</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      font-family: Arial, sans-serif;
+      color: #222;
+      background: url('https://i.ibb.co/djsMQLV/farm-bg.jpg') no-repeat center center/cover;
+    }
+    header {
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+    }
+    .container {
+      max-width: 850px;
+      margin: 20px auto;
+      background: rgba(255,255,255,0.92);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    label { display:block; margin:10px 0 5px; font-weight: bold; }
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    button {
+      background: #0b74ff;
+      color: #fff;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover { background: #095fcc; }
+    .result {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f0f8ff;
+      border-left: 4px solid #0b74ff;
+      white-space: pre-line;
+    }
+    video, canvas {
+      max-width: 100%;
+      margin: 10px 0;
+      border: 2px solid #0b74ff;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌱 Smart Agri Advisor</h1>
+    <p>Soil, Crop, Irrigation & Weather-based tips for farmers</p>
+  </header>
+
+  <div class="container">
+    <h2>Farmer Input</h2>
+
+    <label>Select Location</label>
+    <select id="location">
+      <option value="telangana">Telangana</option>
+      <option value="punjab">Punjab</option>
+      <option value="bihar">Bihar</option>
+      <option value="delhi">Delhi</option>
+    </select>
+
+    <label>Select Language</label>
+    <select id="language">
+      <option value="en">English</option>
+      <option value="hi">हिन्दी (Hindi)</option>
+      <option value="te">తెలుగు (Telugu)</option>
+      <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+    </select>
+
+    <label>Soil pH (optional manual input)</label>
+    <input type="number" id="soilPh" step="0.1" value="6.5">
+
+    <label>Soil Type</label>
+    <select id="soilType">
+      <option value="loam">Loam</option>
+      <option value="clay">Clay</option>
+      <option value="sandy">Sandy</option>
+    </select>
+
+    <button onclick="getAdvice()">Get Recommendation</button>
+
+    <h3>📷 Scan Soil/Plant</h3>
+    <video id="video" autoplay playsinline></video><br>
+    <button onclick="captureImage()">Capture & Analyze</button>
+    <canvas id="canvas" width="400" height="300"></canvas>
+
+    <h3>🎤 Voice Support</h3>
+    <button onclick="startListening()">🎙 Speak Command</button>
+    <button onclick="speakAdvice()">🔊 Hear Advice</button>
+
+    <div class="result" id="adviceBox">No advice yet.</div>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        recommend: "Recommended Crops & Tips",
+        crops: {
+          telangana: ["Cotton", "Red Gram (Tur)", "Rice"],
+          punjab: ["Wheat", "Rice", "Maize"],
+          bihar: ["Maize", "Sugarcane", "Paddy"],
+          delhi: ["Vegetables", "Wheat", "Mustard"]
+        },
+        tips: {
+          lowPh: "Add lime to raise soil pH.",
+          highPh: "Apply sulfur to reduce alkalinity.",
+          sandy: "Add compost to retain water.",
+          clay: "Ensure proper drainage.",
+          loam: "Balanced soil — maintain organic matter.",
+          budget: "Use bio-fertilizers and local seeds to save costs.",
+          weather: "Check local rainfall forecast before sowing."
+        },
+        disease: ["Leaf spot detected", "Possible nutrient deficiency", "Healthy crop"],
+        irrigation: {
+          Cotton: { sandy: "Irrigate every 7–10 days (light, frequent).", clay: "Irrigate every 15 days (avoid waterlogging).", loam: "Irrigate every 12 days, moderate water." },
+          "Red Gram (Tur)": { sandy: "Minimal irrigation; depends on rainfall.", clay: "Irrigate only at flowering and pod filling.", loam: "Irrigate at branching and flowering stages." },
+          Rice: { sandy: "Needs continuous water; puddling recommended.", clay: "Maintain 2–3 inches of standing water.", loam: "Keep soil moist, irrigate every 7 days." },
+          Wheat: { sandy: "Irrigate every 10–12 days.", clay: "Irrigate at root, flowering, grain filling.", loam: "Irrigate every 12–15 days." },
+          Vegetables: { sandy: "Irrigate daily in summer.", clay: "Irrigate 2–3 times per week.", loam: "Irrigate every 3–4 days." }
+        }
+      },
+      hi: {
+        recommend: "अनुशंसित फसलें और सुझाव",
+        crops: {
+          telangana: ["कपास", "अरहर (तूर)", "धान"],
+          punjab: ["गेहूं", "धान", "मक्का"],
+          bihar: ["मक्का", "गन्ना", "धान"],
+          delhi: ["सब्ज़ियाँ", "गेहूं", "सरसों"]
+        },
+        tips: {
+          lowPh: "मिट्टी की pH बढ़ाने के लिए चुना डालें।",
+          highPh: "क्षारीयता कम करने के लिए गंधक डालें।",
+          sandy: "पानी रोकने के लिए खाद मिलाएँ।",
+          clay: "पानी की निकासी सुनिश्चित करें।",
+          loam: "संतुलित मिट्टी — कार्बनिक पदार्थ बनाए रखें।",
+          budget: "खर्च बचाने के लिए जैव उर्वरक और स्थानीय बीज अपनाएँ।",
+          weather: "बुवाई से पहले स्थानीय वर्षा पूर्वानुमान देखें।"
+        },
+        disease: ["पत्तियों पर धब्बे", "पोषक तत्वों की कमी", "फसल स्वस्थ है"],
+        irrigation: {
+          Cotton: { sandy: "हर 7–10 दिन सिंचाई करें (हल्की और बार-बार).", clay: "हर 15 दिन सिंचाई, जलभराव से बचें.", loam: "हर 12 दिन मध्यम पानी दें." },
+          "Red Gram (Tur)": { sandy: "मिनिमल सिंचाई; वर्षा पर निर्भर.", clay: "फूलने और फली भरने पर ही सिंचाई.", loam: "शाखा और फूलने के समय सिंचाई करें." },
+          Rice: { sandy: "लगातार पानी की आवश्यकता; गीला करना आवश्यक.", clay: "2–3 इंच पानी बनाए रखें.", loam: "मिट्टी को नम रखें, हर 7 दिन सिंचाई करें." },
+          Wheat: { sandy: "हर 10–12 दिन सिंचाई.", clay: "जड़, फूल और अनाज भरते समय सिंचाई.", loam: "हर 12–15 दिन सिंचाई." },
+          Vegetables: { sandy: "गर्मी में रोज सिंचाई.", clay: "सप्ताह में 2–3 बार.", loam: "हर 3–4 दिन सिंचाई." }
+        }
+      },
+      te: {
+        recommend: "పంటలు మరియు సూచనలు",
+        crops: {
+          telangana: ["పత్తి", "కందులు (తూర్)", "వరి"],
+          punjab: ["గోధుమలు", "వరి", "మొక్కజొన్న"],
+          bihar: ["మొక్కజొన్న", "చెరకు", "వరి"],
+          delhi: ["కూరగాయలు", "గోధుమలు", "ఆవాలు"]
+        },
+        tips: {
+          lowPh: "pH పెంచడానికి సున్నం వేసుకోండి.",
+          highPh: "అల్కలినిటీ తగ్గించడానికి సల్ఫర్ వేసుకోండి.",
+          sandy: "నీరు నిల్వచేయడానికి కంపోస్ట్ వేసుకోండి.",
+          clay: "మంచి డ్రైనేజ్ ఉండేలా చూడండి.",
+          loam: "సమతుల్యమైన మట్టి — జీవ పదార్థాలు నిలుపుకోండి.",
+          budget: "ఖర్చు తగ్గించడానికి బయో ఎరువులు మరియు స్థానిక విత్తనాలు వాడండి.",
+          weather: "విత్తనాలు వేసే ముందు వర్షం అంచనాలు చూడండి."
+        },
+        disease: ["ఆకు మచ్చలు", "పోషక లోపం", "పంట ఆరోగ్యంగా ఉంది"],
+        irrigation: {
+          Cotton: { sandy: "ప్రతి 7–10 రోజుల్లో నీటివ్వండి (లైట్, తరచుగా).", clay: "ప్రతి 15 రోజుల్లో నీటివ్వండి, నీరు నిలకడవ్వకండి.", loam: "ప్రతి 12 రోజుల్లో మోస్తరు నీరు ఇవ్వండి." },
+          "Red Gram (Tur)": { sandy: "తక్కువ నీటివ్వండి; వర్షం ఆధారంగా.", clay: "పువ్వులు మరియు పెరుగుతున్న పప్పు సమయంలో మాత్రమే.", loam: "శాఖలు మరియు పువ్వు సమయంలో నీటివ్వండి." },
+          Rice: { sandy: "నిరంతరం నీరు అవసరం; మంట అవసరం.", clay: "2–3 అంగుళాల నిల్వ నీరు.", loam: "మట్టిని తేమగా ఉంచండి, ప్రతి 7 రోజుల్లో నీటివ్వండి." },
+          Wheat: { sandy: "ప్రతి 10–12 రోజుల్లో నీటివ్వండి.", clay: "మూలాలు, పువ్వు మరియు గింజ పూర్వక సమయంలో.", loam: "ప్రతి 12–15 రోజుల్లో." },
+          Vegetables: { sandy: "వేసవిలో రోజూ నీటివ్వండి.", clay: "సప్తాహానికి 2–3 సార్లు.", loam: "ప్రతి 3–4 రోజుల్లో." }
+        }
+      },
+      pa: {
+        recommend: "ਸਿਫਾਰਸ਼ੀ ਫਸਲਾਂ ਅਤੇ ਸੁਝਾਅ",
+        crops: {
+          telangana: ["ਕਪਾਹ", "ਅਰਹਰ (ਤੂਰ)", "ਧਾਨ"],
+          punjab: ["ਗੰਹੂ", "ਧਾਨ", "ਮੱਕੀ"],
+          bihar: ["ਮੱਕੀ", "ਗੰਨਾ", "ਧਾਨ"],
+          delhi: ["ਸਬਜ਼ੀਆਂ", "ਗੰਹੂ", "ਸਰੋਂ"]
+        },
+        tips: {
+          lowPh: "ਮਿੱਟੀ ਦਾ pH ਵਧਾਉਣ ਲਈ ਚੂਨਾ ਪਾਓ।",
+          highPh: "ਖਾਰਾਪਣ ਘਟਾਉਣ ਲਈ ਗੰਧਕ ਪਾਓ।",
+          sandy: "ਪਾਣੀ ਰੋਕਣ ਲਈ ਖਾਦ ਮਿਲਾਓ।",
+          clay: "ਠੀਕ ਨਿਕਾਸ ਯਕੀਨੀ ਬਣਾਓ।",
+          loam: "ਸੰਤੁਲਿਤ ਮਿੱਟੀ — ਜੈਵਿਕ ਪਦਾਰਥ ਰੱਖੋ।",
+          budget: "ਖਰਚ ਬਚਾਉਣ ਲਈ ਜੈਵਿਕ ਖਾਦ ਅਤੇ ਸਥਾਨਕ ਬੀਜ ਵਰਤੋ।",
+          weather: "ਬੀਜ ਬੋਣ ਤੋਂ ਪਹਿਲਾਂ ਸਥਾਨਕ ਮੀਂਹ ਦਾ ਅਨੁਮਾਨ ਦੇਖੋ।"
+        },
+        disease: ["ਪੱਤਿਆਂ 'ਤੇ ਦਾਗ਼", "ਪੋਸ਼ਕ ਤੱਤਾਂ ਦੀ ਘਾਟ", "ਫਸਲ ਸਿਹਤਮੰਦ ਹੈ"],
+        irrigation: {
+          Cotton: { sandy: "ਹਰ 7–10 ਦਿਨ ਸਿੰਚਾਈ ਕਰੋ (ਹਲਕਾ, ਵਾਰੰਵਾਰ).", clay: "ਹਰ 15 ਦਿਨ ਸਿੰਚਾਈ ਕਰੋ, ਪਾਣੀ ਖੜਾ ਨਾ ਹੋਵੇ.", loam: "ਹਰ 12 ਦਿਨ ਮੋਡਰੇਟ ਪਾਣੀ ਦਿਓ." },
+          "Red Gram (Tur)": { sandy: "ਘੱਟ ਸਿੰਚਾਈ; ਮੀਂਹ ਉੱਤੇ ਨਿਰਭਰ.", clay: "ਫੁੱਲਣ ਅਤੇ ਫਲੀ ਭਰਨ 'ਤੇ ਸਿੰਚਾਈ.", loam: "ਸ਼ਾਖਾ ਅਤੇ ਫੁੱਲਣ 'ਤੇ ਸਿੰਚਾਈ." },
+          Rice: { sandy: "ਲਗਾਤਾਰ ਪਾਣੀ ਦੀ ਲੋੜ; ਪੱਡਲਿੰਗ ਦੀ ਸਿਫਾਰਸ਼.", clay: "2–3 ਇੰਚ ਪਾਣੀ ਬਣਾਏ ਰੱਖੋ.", loam: "ਮਿੱਟੀ ਨੂੰ ਨਮੀ ਰੱਖੋ, ਹਰ 7 ਦਿਨ ਸਿੰਚਾਈ ਕਰੋ." },
+          Wheat: { sandy: "ਹਰ 10–12 ਦਿਨ ਸਿੰਚਾਈ.", clay: "ਜੜ, ਫੁੱਲ ਅਤੇ ਅਨਾਜ ਭਰਨ 'ਤੇ.", loam: "ਹਰ 12–15 ਦਿਨ." },
+          Vegetables: { sandy: "ਗਰਮੀ ਵਿੱਚ ਹਰ ਰੋਜ਼ ਸਿੰਚਾਈ.", clay: "ਹਫਤੇ ਵਿੱਚ 2–3 ਵਾਰੀ.", loam: "ਹਰ 3–4 ਦਿਨ ਸਿੰਚਾਈ." }
+        }
+      }
+    };
+
+    let currentAdvice = "";
+
+    function getAdvice(phInput, soilInput, diseaseDetected) {
+      const loc = document.getElementById("location").value;
+      const lang = document.getElementById("language").value;
+      const ph = phInput || parseFloat(document.getElementById("soilPh").value);
+      const soil = soilInput || document.getElementById("soilType").value;
+      const t = translations[lang] || translations["en"];
+
+      const cropList = t.crops[loc];
+      let tipsArr = [];
+
+      if (ph < 5.5) tipsArr.push(t.tips.lowPh);
+      if (ph > 7.5) tipsArr.push(t.tips.highPh);
+      if (t.tips[soil]) tipsArr.push(t.tips[soil]);
+
+      tipsArr.push(t.tips.budget);
+      tipsArr.push(t.tips.weather);
+
+      let disease = diseaseDetected || t.disease[Math.floor(Math.random() * t.disease.length)];
+      tipsArr.push("🌿 " + disease);
+
+      let irrigationAdvice = "";
+      cropList.forEach(crop => {
+        if (t.irrigation[crop] && t.irrigation[crop][soil]) {
+          irrigationAdvice += `💧 ${crop}: ${t.irrigation[crop][soil]}\n`;
+        }
+      });
+
+      const msg =
+        `${t.recommend}:\n\n📍 ${loc.toUpperCase()}\n` +
+        `🌾 ${cropList.join(", ")}\n\n` +
+        `🧪 Soil pH: ${ph.toFixed(2)}, Type: ${soil}\n\n` +
+        `➤ ${tipsArr.join("\n➤ ")}\n\n` +
+        `💧 Irrigation Advice:\n${irrigationAdvice}`;
+
+      document.getElementById("adviceBox").innerText = msg;
+      currentAdvice = msg;
+    }
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => console.error("Camera error:", err));
+
+    function captureImage() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let ph = (Math.random() * (8 - 5) + 5);
+      let soilTypes = ["loam", "clay", "sandy"];
+      let soil = soilTypes[Math.floor(Math.random() * soilTypes.length)];
+      getAdvice(ph, soil);
+    }
+
+    function startListening() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-IN";
+      recognition.start();
+      recognition.onresult = (event) => {
+        const command = event.results[0][0].transcript.toLowerCase();
+        if (command.includes("advice")) {
+          getAdvice();
+        } else {
+          document.getElementById("adviceBox").innerText = "🎤 You said: " + command;
+        }
+      };
+    }
+
+    function speakAdvice() {
+      if (!currentAdvice) return;
+      const lang = document.getElementById("language").value;
+      const utterance = new SpeechSynthesisUtterance(currentAdvice);
+      const langMap = { en: "en-US", hi: "hi-IN", te: "te-IN", pa: "pa-IN" };
+      const voices = window.speechSynthesis.getVoices();
+      const selectedVoice = voices.find(v => v.lang === langMap[lang]);
+      if (selectedVoice) utterance.voice = selectedVoice;
+      speechSynthesis.speak(utterance);
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+  </script>
+</body>
+</html>
+
